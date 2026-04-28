@@ -7,17 +7,17 @@
 ^https:\/\/.*\/api\/user\/self$ url script-request-header https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/NewAPI.js
 
 [task_local]
-10 9 * * * https://raw.githubusercontent.com/curtinp118/QuantumultX/refs/heads/main/scripts/NewAPI.js, tag=通用签到(NewAPI), img-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Kuai.png, enabled=true
+10 9 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/NewAPI.js, tag=通用签到(NewAPI), enabled=true
 ; 如需只跑单站点（可选），替换 example.com 为实际域名
-; 10 9 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/NewAPI.js, tag=单站点签到, img-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Kuai.png, enabled=true, argument=host=example.com
+; 10 9 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/NewAPI.js, tag=单站点签到, enabled=true, argument=host=example.com
 ; 如需只跑单站点下某个用户（可选）
-; 10 9 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/NewAPI.js, tag=单用户签到, img-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Kuai.png, enabled=true, argument=host=example.com&uid=1001
+; 10 9 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/NewAPI.js, tag=单用户签到, enabled=true, argument=host=example.com&uid=1001
 ; 删除某个已保存用户（可选）
-; 10 9 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/NewAPI.js, tag=删除用户, img-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Kuai.png, enabled=true, argument=host=example.com&uid=1001&delete=1
+; 10 9 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/NewAPI.js, tag=删除用户, enabled=true, argument=host=example.com&uid=1001&delete=1
 ; 查看当前已保存的站点和用户（可选）
-; 10 9 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/NewAPI.js, tag=查看已保存账号, img-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Kuai.png, enabled=true, argument=list=1
+; 10 9 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/NewAPI.js, tag=查看已保存账号, enabled=true, argument=list=1
 ; 查看某个站点下已保存的用户（可选）
-; 10 9 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/NewAPI.js, tag=查看单站点账号, img-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Kuai.png, enabled=true, argument=list=1&host=example.com
+; 10 9 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/NewAPI.js, tag=查看单站点账号, enabled=true, argument=list=1&host=example.com
 
 [MITM]
 hostname = %APPEND% *
