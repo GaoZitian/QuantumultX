@@ -5,10 +5,7 @@
        2️⃣ Task 阶段：读取本地 token / cookie，向 https://deepimg.io/api/v1/user/signin 发起签到并推送通知；
 
 [rewrite_local]
-① 登录接口：https://api.deepimg.ai/api/login
-② 兼容旧版签到接口（/api/v/user/signin）
 ^https?://api\.deepimg\.ai/api/login url script-response-body https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/DeepImg.js
-^https?://[^/]+/api/v[0-9]+/user/signin url script-response-body https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/DeepImg.js
 
 
 [task_local]
@@ -48,7 +45,7 @@ function pickHeaders(src) {
   return out;
 }
 
-// 本地存取
+// 本地持久化
 function loadStore() {
   try {
     var raw = $prefs.valueForKey(STORE_KEY);
@@ -58,7 +55,7 @@ function loadStore() {
     if (!obj.hosts) obj.hosts = {};
     return obj;
   } catch (e) {
-    console.log('[DeepImg] loadStore error: ' + e);
+    console.log('[DeepImg] loadStore error:', e);
     return { hosts: {} };
   }
 }
@@ -67,7 +64,7 @@ function saveStore(st) {
     $prefs.setValueForKey(JSON.stringify(st), STORE_KEY);
     return true;
   } catch (e) {
-    console.log('[DeepImg] saveStore error: ' + e);
+    console.log('[DeepImg] saveStore error:', e);
     return false;
   }
 }
@@ -82,7 +79,7 @@ if (typeof $request !== 'undefined') {
   var url = $request.url || '';
   var hdr = $request.headers || {};
 
-  // 直接从请求 URL 解析 host，免去 MITM 中硬编码
+  // 直接从请求 URL 里解析 host（不依赖 MITM 域名列表）
   var host = hdr.Host || hdr.host;
   if (!host) {
     try { host = normHost(new URL(url).hostname); } catch (e) { host = ''; }
@@ -90,7 +87,7 @@ if (typeof $request !== 'undefined') {
     host = normHost(host);
   }
 
-  // ---------- 登录接口返回 token ----------
+  // ---------- 登录返回 token ----------
   if (/\/api\/login/.test(url)) {
     var json = safeParse($response.body);
     var token = null;
@@ -160,7 +157,7 @@ if (typeof $request === 'undefined') {
         var user = users[uid];
         if (!user) continue;
 
-        // 合并请求头：Cookie > Authorization (Bearer token)
+        // 合并请求头：Cookie 优先，其次 Authorization（Bearer token）
         var hdr2 = {};
         if (user.headers) {
           for (var k in user.headers) {
@@ -198,7 +195,7 @@ if (typeof $request === 'undefined') {
           continue;
         }
 
-        // 约定返回结构 { code:0, data:{ reward:XX, total:XX } }
+        // 预期返回结构 { code:0, data:{ reward:xx, total:xx } }
         if (data.code === 0) {
           var reward = (data.data && data.data.reward !== undefined) ? data.data.reward : 0;
           var total = (data.data && data.data.total !== undefined) ? data.data.total : '未知';
