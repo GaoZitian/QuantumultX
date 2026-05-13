@@ -1,58 +1,59 @@
+// 常量 & 环境判断
+const STORE_KEY = "DeepImg_Store";                 // 本地持久化键
+const isRewrite = typeof $request !== "undefined"; // true → 正在执行 Rewrite 阶段
 
-//  DeepImg – 通用签到脚本（兼容 Rewrite 捕获与 Cron 定时）
-
-//  功能：
-//    1️⃣ 捕获登录成功返回的 token（JSON）或 Set‑Cookie（auth_token），保存到本地 $prefs；
-//    2️⃣ 定时任务读取本地凭证，向 https://deepimg.io/api/v1/user/signin 发起签到；
-//    3️⃣ 支持可选参数（通过 Task 的 argument）：
-//         host=deepimg.io            → 只针对指定域名执行（默认遍历全部已保存域名）；
-//         uid=default                → DeepImg 只会有一个用户，默认 “default”；
-//         delete=1                  → 删除指定 host/uid 的凭证；
-//         list=1                     → 列出当前已保存的 host/uid（调试用）；
-
-//  使用步骤（仅需一次手动登录后）：
-//    1. 打开 MITM，加入 deepimg.io；
-//    2. 将 DeepImg.conf 导入 Quantumult X 的 “Rewrite”；
-//    3. 手动登录 DeepImg 一次，脚本会自动抓取 token / cookie；
-//    4. 添加一天一次的 Cron（Task）指向本脚本，即可实现每日自动签到。
-
-
-//  常量
-const STORE_KEY = "DeepImg_Store"; // 本地持久化键名
-const isRequest = typeof $request !== "undefined"; // true → 当前是 Rewrite 阶段
-
-//  工具函数
+// 工具函数
 function safeJsonParse(str) {
   try {
     return JSON.parse(str);
-  } catch (_) {
+  } catch (e) {
     return null;
   }
 }
 function normalizeHost(host) {
   return String(host || "").trim().toLowerCase();
 }
-function pickNeedHeaders(src = {}) {
-  const dst = {};
-  const lower = {};
-  for (const k of Object.keys(src || {})) lower[String(k).toLowerCase()] = src[k];
-  const get = (n) => src[n] ?? lower[String(n).toLowerCase()];
-  const NEED_KEYS = ["Host", "User-Agent", "Accept", "Accept-Language", "Accept-Encoding", "Origin",
-    "Referer", "Cookie"];
-  for (const k of NEED_KEYS) {
-    const v = get(k);
-    if (v !== undefined) dst[k] = v;
+function pickNeedHeaders(src) {
+  var dst = {};
+  var lower = {};
+  var i, k, v;
+  if (!src) return dst;
+  for (k in src) {
+    if (src.hasOwnProperty(k)) {
+      lower[String(k).toLowerCase()] = src[k];
+    }
+  }
+  var NEED_KEYS = [
+    "Host",
+    "User-Agent",
+    "Accept",
+    "Accept-Language",
+    "Accept-Encoding",
+    "Origin",
+    "Referer",
+    "Cookie",
+  ];
+  for (i = 0; i < NEED_KEYS.length; i++) {
+    k = NEED_KEYS[i];
+    v = src[k] !== undefined ? src[k] : lower[String(k).toLowerCase()];
+    if (v !== undefined) {
+      dst[k] = v;
+    }
   }
   return dst;
 }
 
-//  本地存储
+// 本地存取
 function loadStore() {
   try {
-    const raw = $prefs.valueForKey(STORE_KEY);
-    if (!raw) return { hosts: {} };
-    const obj = safeJsonParse(raw);
-    if (!obj || typeof obj !== "object") return { hosts: {} };
+    var raw = $prefs.valueForKey(STORE_KEY);
+    if (!raw) {
+      return { hosts: {} };
+    }
+    var obj = safeJsonParse(raw);
+    if (!obj || typeof obj !== "object") {
+      return { hosts: {} };
+    }
     if (!obj.hosts) obj.hosts = {};
     return obj;
   } catch (e) {
@@ -75,75 +76,58 @@ function ensureHostNode(store, host) {
   }
 }
 
-//  辅助：解析 Task 参数
-function parseArgs(str) {
-  const out = {};
-  if (!str) return out;
-  const s = String(str).trim();
-  if (!s) return out;
-  for (const part of s.split("&")) {
-    const seg = part.trim();
-    if (!seg) continue;
-    const eq = seg.indexOf("=");
-    if (eq === -1) {
-      out[decodeURIComponent(seg)] = "";
-    } else {
-      const k = decodeURIComponent(seg.slice(0, eq));
-      const v = decodeURIComponent(seg.slice(eq + 1));
-      out[k] = v;
-    }
-  }
-  return out;
-}
-
-//  ① Rewrite：捕获登录信息
-if (isRequest) {
-  const url = $request.url || "";
-  const host = (() => {
-    const hdr = $request.headers || {};
+// ① Rewrite：捕获登录信息
+if (isRewrite) {
+  var url = $request.url || "";
+  var host = (function () {
+    var hdr = $request.headers || {};
     if (hdr.Host) return normalizeHost(hdr.Host);
     if (hdr.host) return normalizeHost(hdr.host);
     try {
       return normalizeHost(new URL($request.url).hostname);
-    } catch (_) {
+    } catch (e) {
       return "";
     }
   })();
 
-  // ==== 捕获 token（登录返回的 JSON） ====
+  // ---- 捕获 token（登录返回的 JSON） ----
   if (/\/api\/v[0-9]+\/auth\/login/.test(url)) {
-    // 登录成功后返回类似 { data:{ token:"xxxx" } } 或 { token:"xxxx" }
-    const body = $response.body;
-    const json = safeJsonParse(body);
-    const token = json?.data?.token || json?.token;
+    var json = safeJsonParse($response.body);
+    var token = null;
+    if (json) {
+      if (json.data && json.data.token) token = json.data.token;
+      else if (json.token) token = json.token;
+    }
     if (token) {
-      const store = loadStore();
+      var store = loadStore();
       ensureHostNode(store, host);
-      const uid = "default";
-      store.hosts[host].users[uid] = store.hosts[host].users[uid] || {};
+      var uid = "default";
+      if (!store.hosts[host].users[uid]) store.hosts[host].users[uid] = {};
       store.hosts[host].users[uid].token = token;
-      // 记录一次通用请求头，后面签到会复用
-      store.hosts[host].users[uid].headers = pickNeedHeaders($response.headers || {});
+      // 保存一次完整请求头，后面签到直接复用
+      store.hosts[host].users[uid].headers = pickNeedHeaders($response.headers);
       saveStore(store);
     }
   }
 
-  // ==== 捕获 Set‑Cookie（auth_token） ====
+  // ---- 捕获 Set‑Cookie（auth_token） ----
   if ($response.headers && $response.headers["Set-Cookie"]) {
-    const raw = $response.headers["Set-Cookie"]; // 可能是数组或字符串
-    let cookieStr = "";
+    var raw = $response.headers["Set-Cookie"]; // 可能是数组或字符串
+    var cookieStr = "";
     if (Array.isArray(raw)) {
-      cookieStr = raw.map(v => v.split(";")[0]).join("; ");
+      cookieStr = raw.map(function (v) {
+        return v.split(";")[0];
+      }).join("; ");
     } else {
       cookieStr = raw.split(";")[0];
     }
-    const m = cookieStr.match(/auth_token=([^;]+)/);
+    var m = cookieStr.match(/auth_token=([^;]+)/);
     if (m) {
-      const store = loadStore();
+      var store = loadStore();
       ensureHostNode(store, host);
-      const uid = "default";
-      store.hosts[host].users[uid] = store.hosts[host].users[uid] || {};
-      store.hosts[host].users[uid].cookie = `auth_token=${m[1]}`;
+      var uid = "default";
+      if (!store.hosts[host].users[uid]) store.hosts[host].users[uid] = {};
+      store.hosts[host].users[uid].cookie = "auth_token=" + m[1];
       store.hosts[host].users[uid].headers = pickNeedHeaders($response.headers);
       saveStore(store);
     }
@@ -153,116 +137,81 @@ if (isRequest) {
   $done({});
 }
 
-//  ② Task（Cron）
-if (!isRequest) {
-  // 读取 Task 传入的 argument（如 host=..., delete=1, list=1 等）
-  const args = parseArgs($argument);
-  const targetHost = args.host ? normalizeHost(args.host) : ""; // 空串 → 所有已保存 host
-  const targetUid = args.uid ? args.uid : "default";
-  const doDelete = args.delete === "1";
-  const doList = args.list === "1";
-
-  const store = loadStore();
-
-  // ---------- 列表或删除 ----------
-  if (doList) {
-    // list=1  (可额外限定 host=xxx)
-    let out = "";
-    for (const h of Object.keys(store.hosts)) {
-      if (targetHost && h !== targetHost) continue;
-      const users = store.hosts[h].users;
-      out += `\n === ${h} ===`;
-      for (const u of Object.keys(users)) {
-        out += `\n  uid: ${u} token: ${users[u].token ? "✅" : "❌"} cookie: ${users[u].cookie ? "✅" : "❌"}`;
-      }
-    }
-    $notification.post("DeepImg 账户列表", "", out || "暂无已保存账户");
-    $done({});
+// ② Task（Cron）
+if (!isRewrite) {
+  // 读取本地已保存的全部 host/uid，遍历执行签到
+  var store = loadStore();
+  if (!store.hosts || Object.keys(store.hosts).length === 0) {
+    $notification.post("DeepImg 签到", "未检测到已保存的登录凭证", "请先手动登录一次 DeepImg");
+    $done();
+    return;
   }
 
-  if (doDelete) {
-    // delete=1 & host=... & uid=...
-    if (!targetHost) {
-      $notification.post("DeepImg 删除", "缺少 host 参数", "请使用 argument=host=deepimg.io&uid=default&delete=1");
-      $done({});
-    }
-    const users = store.hosts[targetHost]?.users;
-    if (!users) {
-      $notification.post("DeepImg 删除", `未找到 host ${targetHost}`, "");
-      $done({});
-    }
-    if (users[targetUid]) {
-      delete users[targetUid];
-      // 若该 host 已无用户，直接删除整个 host 节点
-      if (Object.keys(users).length === 0) delete store.hosts[targetHost];
-      saveStore(store);
-      $notification.post("DeepImg 删除", `已删除 ${targetHost} / ${targetUid}`, "");
-    } else {
-      $notification.post("DeepImg 删除", `未找到 uid ${targetUid}，host: ${targetHost}`);
-    }
-    $done({});
-  }
-
-  // ---------- 正式签到 ----------
-  // 需要遍历：满足（host 匹配） && （uid 匹配或全部 uid）
-  const hostsToRun = targetHost ? [targetHost] : Object.keys(store.hosts);
-  for (const h of hostsToRun) {
-    const hostNode = store.hosts[h];
-    if (!hostNode) continue;
-
-    const uidList = targetUid ? [targetUid] : Object.keys(hostNode.users);
-    for (const uid of uidList) {
-      const user = hostNode.users[uid];
+  // 遍历每个 host
+  for (var hostKey in store.hosts) {
+    if (!store.hosts.hasOwnProperty(hostKey)) continue;
+    var users = store.hosts[hostKey].users || {};
+    // 遍历该 host 下的每个 uid（DeepImg 只会有一个 uid，默认 default）
+    for (var uidKey in users) {
+      if (!users.hasOwnProperty(uidKey)) continue;
+      var user = users[uidKey];
       if (!user) continue;
 
-      // 组合请求头，优先使用保存的 cookie，其次是 token
-      const hdr = Object.assign({}, user.headers || {});
+      // 合并请求头：优先使用 cookie，其次 token
+      var hdr = {};
+      // 复制保存的 headers（如果有的话）
+      if (user.headers) {
+        for (var hk in user.headers) {
+          if (user.headers.hasOwnProperty(hk)) hdr[hk] = user.headers[hk];
+        }
+      }
       if (user.cookie) hdr.Cookie = user.cookie;
-      if (user.token) hdr.Authorization = `Bearer ${user.token}`;
+      if (user.token) hdr.Authorization = "Bearer " + user.token;
 
-      const signUrl = `https://${h}/api/v1/user/signin`;
-      const req = {
+      var signUrl = "https://" + hostKey + "/api/v1/user/signin";
+      var req = {
         url: signUrl,
         method: "POST",
         header: hdr,
-        body: "{}", // DeepImg 的签到接口不需要额外参数
+        body: "{}",
       };
 
-      (async () => {
-        let resp;
-        try {
-          resp = await $task.fetch(req);
-        } catch (e) {
-          $notification.post(`DeepImg(${h})`, "网络错误", String(e));
-          return;
-        }
+      (function (hostDisplay) {
+        (async function () {
+          var resp;
+          try {
+            resp = await $task.fetch(req);
+          } catch (e) {
+            $notification.post("DeepImg(" + hostDisplay + ")", "网络错误", String(e));
+            return;
+          }
 
-        if (resp.statusCode !== 200) {
-          $notification.post(`DeepImg(${h})`, `HTTP ${resp.statusCode}`, resp.body);
-          return;
-        }
+          if (resp.statusCode !== 200) {
+            $notification.post("DeepImg(" + hostDisplay + ")", "HTTP " + resp.statusCode, resp.body);
+            return;
+          }
 
-        let data;
-        try {
-          data = safeJsonParse(resp.body);
-        } catch (_) {
-          $notification.post(`DeepImg(${h})`, "响应非 JSON", resp.body);
-          return;
-        }
+          var data = safeJsonParse(resp.body);
+          if (!data) {
+            $notification.post("DeepImg(" + hostDisplay + ")", "返回非 JSON", resp.body);
+            return;
+          }
 
-        // 常见返回结构：{ code:0, data:{ reward:10, total:120 } }
-        if (data && data.code === 0) {
-          const reward = data?.data?.reward ?? 0;
-          const total = data?.data?.total ?? "未知";
-          $notification.post(`DeepImg(${h}) ✅`, `今日 + ${reward} | 累计 ${total}`, "签到成功");
-        } else {
-          const msg = data?.msg ?? "未知错误";
-          $notification.post(`DeepImg(${h}) ⚠️`, `code ${data?.code ?? "?"} - ${msg}`, resp.body);
-        }
-      })();
+          // 假设返回结构：{ code:0, data:{ reward:10, total:120 } }
+          if (data.code === 0) {
+            var reward = data.data && data.data.reward !== undefined ? data.data.reward : 0;
+            var total = data.data && data.data.total !== undefined ? data.data.total : "未知";
+            $notification.post("DeepImg(" + hostDisplay + ") ✅", "今日 +" + reward + " | 累计 " + total,
+              "签到成功");
+          } else {
+            var msg = data.msg !== undefined ? data.msg : "未知错误";
+            $notification.post("DeepImg(" + hostDisplay + ") ⚠️", "code " + (data.code !== undefined ?
+              data.code : "?") + " - " + msg, resp.body);
+          }
+        })();
+      })(hostKey);
     }
   }
 
-  // Task 结束
   $done({});
 }
