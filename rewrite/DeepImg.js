@@ -1,12 +1,7 @@
 /*
-  DeepImg 自动签到
-
-       1️⃣ Rewrite 阶段：捕获登录返回的 token（JSON）或 Set‑Cookie 中的 auth_token，保存到 $prefs；
-       2️⃣ Task 阶段：读取本地 token / cookie，向 https://deepimg.io/api/v1/user/signin 发起签到并推送通知；
 
 [rewrite_local]
-^https?://api\.deepimg\.ai/api/login url script-response-body https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/DeepImg.js
-
+^https?:\/\/api\.deepimg\.ai\/api\/login url script-response-body https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/DeepImg.js
 
 [task_local]
 0 3 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/DeepImg.js, tag=DeepImg, enabled=true
@@ -79,7 +74,7 @@ if (typeof $request !== 'undefined') {
   var url = $request.url || '';
   var hdr = $request.headers || {};
 
-  // 直接从请求 URL 里解析 host（不依赖 MITM 域名列表）
+  // 直接从请求本身解析 host，免除 MITM 手动写域名
   var host = hdr.Host || hdr.host;
   if (!host) {
     try { host = normHost(new URL(url).hostname); } catch (e) { host = ''; }
@@ -92,6 +87,7 @@ if (typeof $request !== 'undefined') {
     var json = safeParse($response.body);
     var token = null;
     if (json) {
+      // DeepImg 登录成功的标准返回：{ code:0, data:{ token:'xxxx' } }
       if (json.data && json.data.token) token = json.data.token;
       else if (json.token) token = json.token;
     }
@@ -104,7 +100,7 @@ if (typeof $request !== 'undefined') {
       store.hosts[host].users[uid].headers = pickHeaders($response.headers);
       saveStore(store);
       console.log('[DeepImg] 捕获 token → ' + host);
-      // 登录成功即时通知
+      // 登录成功立即弹通知（在 $done() 之前）
       $notification.post('DeepImg 登录成功 ✅', '已成功获取 token', 'host: ' + host);
     }
   }
@@ -128,7 +124,6 @@ if (typeof $request !== 'undefined') {
       store.hosts[host].users[uid].headers = pickHeaders($response.headers);
       saveStore(store);
       console.log('[DeepImg] 捕获 cookie → ' + host);
-      // Cookie 捕获即时通知
       $notification.post('DeepImg 捕获 Cookie ✅', '已成功获取 auth_token', 'host: ' + host);
     }
   }
@@ -136,19 +131,18 @@ if (typeof $request !== 'undefined') {
   $done({});
 }
 
-// ② Task（Cron）
+// ② Task（Cron
 if (typeof $request === 'undefined') {
   (async function () {
     var store = loadStore();
 
-    // 没有凭证，提醒手动登录一次
+    // 没有任何凭证，提示先登录
     if (!store.hosts || Object.keys(store.hosts).length === 0) {
       $notification.post('DeepImg 签到', '未检测到已保存的登录凭证', '请先打开 DeepImg登录页面完成登录');
       $done();
       return;
     }
 
-    // 遍历所有已保存的 host（通常只有 api.deepimg.ai）
     for (var host in store.hosts) {
       if (!Object.prototype.hasOwnProperty.call(store.hosts, host)) continue;
       var users = store.hosts[host].users || {};
@@ -157,7 +151,7 @@ if (typeof $request === 'undefined') {
         var user = users[uid];
         if (!user) continue;
 
-        // 合并请求头：Cookie 优先，其次 Authorization（Bearer token）
+        // 合并请求头：Cookie > Authorization (Bearer token)
         var hdr2 = {};
         if (user.headers) {
           for (var k in user.headers) {
@@ -195,7 +189,7 @@ if (typeof $request === 'undefined') {
           continue;
         }
 
-        // 预期返回结构 { code:0, data:{ reward:xx, total:xx } }
+        // 约定返回结构：{ code:0, data:{ reward:xx, total:xx } }
         if (data.code === 0) {
           var reward = (data.data && data.data.reward !== undefined) ? data.data.reward : 0;
           var total = (data.data && data.data.total !== undefined) ? data.data.total : '未知';
