@@ -4,17 +4,11 @@
        1️⃣ Rewrite 阶段：捕获登录返回的 token（JSON）或 Set‑Cookie 中的 auth_token，保存到 $prefs；
        2️⃣ Task 阶段：读取本地 token / cookie，向 https://deepimg.io/api/v1/user/signin 发起签到并推送通知；
 
-       使用方式：
-         - MITM → 目标域名填写 %APPEND% （全局拦截），打开 MITM 并重启 Quantumult X；
-         - 将本脚本的 Raw 链接导入 Quantumult X（上面的两行已是规则），确认出现两条规则（Rewrite + Task）；
-         - 手动登录一次 DeepImg（或打开签到弹窗），日志中会出现捕获日志；
-         - 之后每天自动签到，收到本地通知。
-
 [rewrite_local]
-^https?://[^/]+/api/v[0-9]+/(auth/login|user/signin) url script-response-body https://raw.githubusercontent.com/yourname/yourrepo/main/QuantumultX/DeepImg.js
+^https?://[^/]+/api/v[0-9]+/(auth/login|user/signin) url script-response-body https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/DeepImg.js
 
 [task_local]
-0 0 * * * https://raw.githubusercontent.com/yourname/yourrepo/main/QuantumultX/DeepImg.js, tag=DeepImg
+0 3 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/DeepImg.js, tag=DeepImg, enabled=true
 
 [MITM]
 hostname = %APPEND% *
