@@ -1,17 +1,3 @@
-/**
- * [rewrite_local]
-     捕获任意域名下的 DeepImg 登录或签到返回的 token / auth_token
-只要请求路径包含 / api / v / auth / login 或 / api / v / user / signin 即会被拦截
-  ^ https ?://[^/]+/api/v[0-9]+/(auth/login|user/signin) url script-response-body
-  https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/DeepImg.js
-
-[task_local]
-     每天 00:00（UTC）自动执行一次签到（使用同一脚本）
-0 0    https://raw.githubusercontent.com/GaoZitian/QuantumultX/refs/heads/main/rewrite/DeepImg.js,
-tag = DeepImg 每日签到, enabled = true
- * 
- */
-
 const STORE_KEY = "DeepImg_Store";
 
 // 工具函数
@@ -52,7 +38,7 @@ function loadStore() {
     if (!obj.hosts) obj.hosts = {};
     return obj;
   } catch (e) {
-    console.error("[DeepImg] loadStore error:", e);
+    console.log("[DeepImg] loadStore error: " + e);
     return { hosts: {} };
   }
 }
@@ -61,7 +47,7 @@ function saveStore(st) {
     $prefs.setValueForKey(JSON.stringify(st), STORE_KEY);
     return true;
   } catch (e) {
-    console.error("[DeepImg] saveStore error:", e);
+    console.log("[DeepImg] saveStore error: " + e);
     return false;
   }
 }
@@ -71,12 +57,12 @@ function ensureHost(st, h) {
   }
 }
 
-// ① Rewrite：捕获登录信息
+// ① Rewrite：捕获凭证
 if (typeof $request !== "undefined") {
   var url = $request.url || "";
   var hdr = $request.headers || {};
 
-  // 直接从请求 URL 中取 host（不依赖 MITM 的 domain 列表）
+  // 从请求本身解析 host，避免 MITM 里写死域名
   var host = hdr.Host || hdr.host;
   if (!host) {
     try { host = normHost(new URL(url).hostname); } catch (e) { host = ""; }
@@ -84,7 +70,7 @@ if (typeof $request !== "undefined") {
     host = normHost(host);
   }
 
-  // ----- 捕获登录返回的 token -----
+  // ---------- 捕获登录返回的 token ----------
   if (/\/api\/v[0-9]+\/auth\/login/.test(url)) {
     var json = safeParse($response.body);
     var token = null;
@@ -103,7 +89,7 @@ if (typeof $request !== "undefined") {
     }
   }
 
-  // ----- 捕获 Set‑Cookie（auth_token） -----
+  // ---------- 捕获 Set‑Cookie（auth_token） ----------
   if ($response.headers && $response.headers["Set-Cookie"]) {
     var raw = $response.headers["Set-Cookie"]; // 可能是数组或字符串
     var cookieStr = "";
@@ -137,6 +123,7 @@ if (typeof $request === "undefined") {
       return;
     }
 
+    // 遍历所有已保存的 host（理论上只有 deepimg.io）
     for (var host in store.hosts) {
       if (!Object.prototype.hasOwnProperty.call(store.hosts, host)) continue;
       var users = store.hosts[host].users || {};
@@ -145,12 +132,12 @@ if (typeof $request === "undefined") {
         var user = users[uid];
         if (!user) continue;
 
-        // 合并请求头：优先 Cookie，其次 Authorization
+        // 合并请求头：Cookie > Authorization
         var hdr2 = {};
         if (user.headers) {
-          for (var hk in user.headers) {
-            if (Object.prototype.hasOwnProperty.call(user.headers, hk)) {
-              hdr2[hk] = user.headers[hk];
+          for (var k in user.headers) {
+            if (Object.prototype.hasOwnProperty.call(user.headers, k)) {
+              hdr2[k] = user.headers[k];
             }
           }
         }
@@ -162,7 +149,7 @@ if (typeof $request === "undefined") {
           url: signUrl,
           method: "POST",
           header: hdr2,
-          body: "{}"   // DeepImg 签到不需要额外参数
+          body: "{}"
         };
 
         var resp;
