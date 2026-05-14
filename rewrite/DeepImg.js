@@ -1,4 +1,3 @@
-// DeepImg QX Rewrite & Task Script
 /*
 [rewrite_local]
 ^ https ?: \/\/api\.deepimg\.ai\/api\/login url script-response-body https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/DeepImg.js
