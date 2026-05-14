@@ -11,17 +11,20 @@
 hostname = % APPEND %
 */
 
-
-
+// ---------- 通用工具 ----------
 const STORE_KEY = 'DeepImg_Store';
 
-// ---------- 通用工具 ----------
+// 把字符串安全转成 JSON
 function safeParse(str) {
   try { return JSON.parse(str); } catch (e) { return null; }
 }
+
+// 统一化 host（去掉端口、转小写等）
 function normHost(host) {
   return String(host || '').trim().toLowerCase();
 }
+
+// 从响应头挑出常用字段，避免把多余的 header 带进去
 function pickHeaders(src) {
   const out = {};
   const lower = {};
@@ -31,8 +34,10 @@ function pickHeaders(src) {
       lower[String(k).toLowerCase()] = src[k];
     }
   }
-  const need =
-    ['Host', 'User-Agent', 'Accept', 'Accept-Language', 'Accept-Encoding', 'Origin', 'Referer', 'Cookie'];
+  const need = [
+    'Host', 'User-Agent', 'Accept', 'Accept-Language', 'Accept-Encoding',
+    'Origin', 'Referer', 'Cookie'
+  ];
   for (const key of need) {
     const val = src[key] !== undefined ? src[key] : lower[String(key).toLowerCase()];
     if (val !== undefined) out[key] = val;
@@ -67,18 +72,18 @@ function ensureHost(st, h) {
   if (!st.hosts[h] || typeof st.hosts[h] !== 'object') st.hosts[h] = { users: {} };
 }
 
-// ---------- Rewrite: 捕获凭证 ----------
+// ---------- Rewrite：捕获凭证 ----------
 if (typeof $request !== 'undefined') {
   const url = $request.url || '';
   const hdr = $request.headers || {};
   let host = hdr.Host || hdr.host;
   if (!host) {
-    try { host = normHost(new URL(url).hostname); } catch (e) { host = ''; }
+    try { host = normHost(new URL(url).hostname); } catch (_) { host = ''; }
   } else {
     host = normHost(host);
   }
 
-  // 登录成功返回 token
+  // 1️⃣ 登录成功返回 token
   if (/\/api\/login/.test(url)) {
     const json = safeParse($response.body);
     let token = null;
@@ -99,7 +104,7 @@ if (typeof $request !== 'undefined') {
     }
   }
 
-  // 捕获 Set-Cookie 中的 auth_token
+  // 2️⃣ 捕获 Set‑Cookie 中的 auth_token
   if ($response.headers && $response.headers['Set-Cookie']) {
     const raw = $response.headers['Set-Cookie'];
     let cookieStr = '';
@@ -121,49 +126,60 @@ if (typeof $request !== 'undefined') {
   $done({});
 }
 
-// ---------- Task: 每日签到 ----------
+// ---------- Task：每日签到 ----------
 if (typeof $request === 'undefined') {
   (async () => {
     const store = loadStore();
+
+    // 没有凭证时提醒用户先登录
     if (!store.hosts || Object.keys(store.hosts).length === 0) {
       $notification.post('DeepImg 签到', '未检测到已保存的登录凭证', '请先打开 DeepImg登录页面完成登录');
       $done();
       return;
     }
+
     for (const host in store.hosts) {
       const users = store.hosts[host].users || {};
       for (const uid in users) {
         const user = users[uid];
         if (!user) continue;
-        const hdr2 = { ...(user.headers || {}) };
-        if (user.cookie) hdr2.Cookie = user.cookie;
-        if (user.token) hdr2.Authorization = 'Bearer ' + user.token;
+
+        // 合并已有请求头、Cookie、Authorization
+        const hdr = { ...(user.headers || {}) };
+        if (user.cookie) hdr.Cookie = user.cookie;
+        if (user.token) hdr.Authorization = 'Bearer ' + user.token;
+
         const signUrl = 'https://' + host + '/api/v1/user/signin';
-        const req = { url: signUrl, method: 'POST', header: hdr2, body: '{}' };
+        const req = { url: signUrl, method: 'POST', header: hdr, body: '{}' };
+
         let resp;
         try { resp = await $task.fetch(req); }
         catch (e) {
           $notification.post('DeepImg(' + host + ')', '网络错误', String(e));
           continue;
         }
+
         if (resp.statusCode !== 200) {
           $notification.post('DeepImg(' + host + ')', 'HTTP ' + resp.statusCode, resp.body);
           continue;
         }
+
         const data = safeParse(resp.body);
         if (!data) {
           $notification.post('DeepImg(' + host + ')', '返回非 JSON', resp.body);
           continue;
         }
+
         if (data.code === 0) {
-          const reward = data.data?.reward ?? 0;
-          const total = data.data?.total ?? '未知';
+          // 兼容不支持 ?. 与 ?? 的环境
+          const reward = (data.data && data.data.reward !== undefined) ? data.data.reward : 0;
+          const total = (data.data && data.data.total !== undefined) ? data.data.total : '未知';
           $notification.post('DeepImg(' + host + ') ✅', '今日 +' + reward + ' | 累计 ' + total,
             '签到成功');
         } else {
-          const msg = data.msg ?? '未知错误';
-          const codeStr = data.code ?? '?';
-          $notification.post('DeepImg(' + host + ') ⚠️', 'code ' + codeStr + ' - ' + msg, resp.body);
+          const msg = data.msg !== undefined ? data.msg : '未知错误';
+          const code = data.code !== undefined ? data.code : '?';
+          $notification.post('DeepImg(' + host + ') ⚠️', 'code ' + code + ' - ' + msg, resp.body);
         }
       }
     }
