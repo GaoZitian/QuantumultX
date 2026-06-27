@@ -151,19 +151,35 @@ if (isGetHeader) {
         // 成功
         if (status === 200 && code === 0) {
           const credits = d.single_checkin_credits || 0;
-          const total = d.total_credits || 0;
           const day = d.current_day || 0;
+          const total = store.lastTotal || 0;
 
           console.log(`[DeepImg] 签到成功 | +${credits}积分 | 连续${day}天 | 总计${total}`);
           $notify("DeepImg 签到 ✓", `签到成功，获得 ${credits} 积分`, `连续签到 ${day} 天\n总积分: ${total}`);
+
+          // 异步更新积分缓存
+          $task.fetch({
+            url: `${API_BASE}/api/user/credits/stats`,
+            method: "GET",
+            headers: { "Authorization": `Bearer ${store.token}` },
+          }).then((resp) => {
+            const data = safeJsonParse(resp.body);
+            const newTotal = parseInt(data?.data?.total?.total_credits) || 0;
+            const cache = getStore();
+            cache.lastTotal = newTotal;
+            cache.lastCredits = credits;
+            cache.lastDay = day;
+            saveStore(cache);
+          }).catch(() => {});
+
           return $done();
         }
 
         // 已签到
         if (status === 200 && (message.includes("already") || message.includes("已签到") || message.includes("今日已签到"))) {
-          const total = d.total_credits || 0;
+          const total = store.lastTotal || 0;
           console.log(`[DeepImg] 今日已签到 | 总计${total}`);
-          $notify("DeepImg 签到", "今日已签到", `今天已经签到过了\n总积分: ${total}`);
+          $notify("DeepImg 签到", "今日已签到", message || "今天已经签到过了");
           return $done();
         }
 
