@@ -161,12 +161,20 @@ if (isGetHeader) {
           const logMsg = `[DeepImg] 签到成功 | +${credits}积分 | 连续${day}天 | 总计${total}`;
           console.log(logMsg);
           $notify("DeepImg 签到 ✓", `签到成功，获得 ${credits} 积分`, `连续签到 ${day} 天\n总积分: ${total}`);
+
+          // 缓存积分数据
+          const cache = getStore();
+          cache.lastCredits = credits;
+          cache.lastTotal = total;
+          cache.lastDay = day;
+          saveStore(cache);
+
           return $done();
         }
 
         // 已签到
         if (status === 200 && (message.includes("already") || message.includes("已签到") || message.includes("今日已签到"))) {
-          const total = d.total_credits || 0;
+          const total = d.total_credits || store.lastTotal || 0;
           console.log(`[DeepImg] 今日已签到 | 总计${total}`);
           $notify("DeepImg 签到", "今日已签到", message || "今天已经签到过了");
           return $done();
