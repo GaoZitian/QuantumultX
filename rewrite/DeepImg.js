@@ -73,24 +73,6 @@ function formatDate(ts) {
   } catch (_) { return "未知"; }
 }
 
-function fetchTotalCredits(token, callback) {
-  $task.fetch({
-    url: `${API_BASE}/api/user/credits/stats`,
-    method: "GET",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Accept": "application/json",
-    },
-  }).then((resp) => {
-    const data = safeJsonParse(resp.body);
-    const total = parseInt(data?.data?.total?.total_credits) || 0;
-    callback(total);
-  }).catch(() => {
-    const store = getStore();
-    callback(store.lastTotal || 0);
-  });
-}
-
 // ============ 抓取 Token（rewrite 脚本触发） ============
 const isGetHeader = typeof $request !== "undefined" && $request.headers;
 
@@ -169,31 +151,20 @@ if (isGetHeader) {
         // 成功
         if (status === 200 && code === 0) {
           const credits = d.single_checkin_credits || 0;
+          const total = d.total_credits || 0;
           const day = d.current_day || 0;
 
-          fetchTotalCredits(store.token, (total) => {
-            console.log(`[DeepImg] 签到成功 | +${credits}积分 | 连续${day}天 | 总计${total}`);
-            $notify("DeepImg 签到 ✓", `签到成功，获得 ${credits} 积分`, `连续签到 ${day} 天\n总积分: ${total}`);
-
-            const cache = getStore();
-            cache.lastCredits = credits;
-            cache.lastTotal = total;
-            cache.lastDay = day;
-            saveStore(cache);
-
-            return $done();
-          });
-          return;
+          console.log(`[DeepImg] 签到成功 | +${credits}积分 | 连续${day}天 | 总计${total}`);
+          $notify("DeepImg 签到 ✓", `签到成功，获得 ${credits} 积分`, `连续签到 ${day} 天\n总积分: ${total}`);
+          return $done();
         }
 
         // 已签到
         if (status === 200 && (message.includes("already") || message.includes("已签到") || message.includes("今日已签到"))) {
-          fetchTotalCredits(store.token, (total) => {
-            console.log(`[DeepImg] 今日已签到 | 总计${total}`);
-            $notify("DeepImg 签到", "今日已签到", message || "今天已经签到过了");
-            return $done();
-          });
-          return;
+          const total = d.total_credits || 0;
+          console.log(`[DeepImg] 今日已签到 | 总计${total}`);
+          $notify("DeepImg 签到", "今日已签到", `今天已经签到过了\n总积分: ${total}`);
+          return $done();
         }
 
         // 登录失效
