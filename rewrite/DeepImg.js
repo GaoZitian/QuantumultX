@@ -8,13 +8,13 @@
   3. 添加定时任务，每天 00:04 自动签到
 
 [rewrite_local]
-^https:\/\/api\.deepimg\.ai\/api\/user\/credits\/stats url script-request-header https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/DeepImg-checkin.js
+^https:\/\/api\.deepimg\.ai\/api\/user\/credits\/stats url script-request-header https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/DeepImg.js
 
 [task_local]
-4 0 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/DeepImg-checkin.js, tag=DeepImg签到, img-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Kuai.png, enabled=true
+4 0 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/DeepImg.js, tag=DeepImg签到, img-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Kuai.png, enabled=true
 
 查看已保存账号（可选）
-4 0 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/DeepImg-checkin.js, tag=DeepImg查看账号, img-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Kuai.png, enabled=true, argument=list=1
+4 0 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/DeepImg.js, tag=DeepImg查看账号, img-url=https://raw.githubusercontent.com/Orz-3/mini/master/Color/Kuai.png, enabled=true, argument=list=1
 
 [MITM]
 hostname = %APPEND% api.deepimg.ai
