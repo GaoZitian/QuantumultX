@@ -145,7 +145,7 @@ if (isGetHeader) {
         if (!data) {
           console.log(`[DeepImg] 解析失败 | HTTP ${status} | ${body.substring(0, 200)}`);
           $notify("DeepImg 签到", "响应解析失败", `HTTP ${status}`);
-          return;
+          return $done();
         }
 
         const code = data.code;
@@ -161,7 +161,7 @@ if (isGetHeader) {
           const logMsg = `[DeepImg] 签到成功 | +${credits}积分 | 连续${day}天 | 总计${total}`;
           console.log(logMsg);
           $notify("DeepImg 签到 ✓", `签到成功，获得 ${credits} 积分`, `连续签到 ${day} 天\n总积分: ${total}`);
-          return;
+          return $done();
         }
 
         // 已签到
@@ -169,7 +169,7 @@ if (isGetHeader) {
           const total = d.total_credits || 0;
           console.log(`[DeepImg] 今日已签到 | 总计${total}`);
           $notify("DeepImg 签到", "今日已签到", message || "今天已经签到过了");
-          return;
+          return $done();
         }
 
         // 登录失效
@@ -180,18 +180,20 @@ if (isGetHeader) {
           const s = getStore();
           delete s.token;
           saveStore(s);
-          return;
+          return $done();
         }
 
         // 其他错误
         const logMsg = `[DeepImg] 签到失败 | HTTP ${status} | code=${code} | ${message}`;
         console.log(logMsg);
         $notify("DeepImg 签到", "签到失败", message || `HTTP ${status}`);
+        return $done();
       },
       (reason) => {
         const err = reason?.error ? String(reason.error) : String(reason || "");
         console.log(`[DeepImg] 网络错误 | ${err}`);
         $notify("DeepImg 签到", "网络错误", err);
+        return $done();
       }
     );
   };
