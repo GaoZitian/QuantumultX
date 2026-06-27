@@ -82,7 +82,6 @@ if (isGetHeader) {
   const token = auth.replace(/^Bearer\s+/i, "").trim();
 
   if (!token) {
-    $notify("DeepImg 签到", "抓取失败", "未找到 Authorization 头，请先登录 deepimg.io");
     return $done({});
   }
 
@@ -121,90 +120,82 @@ if (isGetHeader) {
   // 执行签到
   const doCheckin = () => {
     $task.fetch({
-      url: `${API_BASE}/api/checkin`,
-      method: "POST",
+      url: `${API_BASE}/api/user/credits/stats`,
+      method: "GET",
       headers: {
         "Authorization": `Bearer ${store.token}`,
-        "Content-Type": "application/json",
-        "Accept": "application/json, text/plain, */*",
-        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
-        "Origin": "https://deepimg.io",
-        "Referer": "https://deepimg.io/",
+        "Accept": "application/json",
       },
-      body: "",
-    }).then(
-      (resp) => {
-        const status = resp.statusCode;
-        const body = resp.body || "";
-        const data = safeJsonParse(body);
+    }).then((statsResp) => {
+      const statsData = safeJsonParse(statsResp.body);
+      const total = parseInt(statsData?.data?.total?.total_credits) || 0;
 
-        if (!data) {
-          console.log(`[DeepImg] 解析失败 | HTTP ${status} | ${body.substring(0, 200)}`);
-          $notify("DeepImg 签到", "响应解析失败", `HTTP ${status}`);
+      $task.fetch({
+        url: `${API_BASE}/api/checkin`,
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${store.token}`,
+          "Content-Type": "application/json",
+          "Accept": "application/json, text/plain, */*",
+          "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+          "Origin": "https://deepimg.io",
+          "Referer": "https://deepimg.io/",
+        },
+        body: "",
+      }).then(
+        (resp) => {
+          const status = resp.statusCode;
+          const body = resp.body || "";
+          const data = safeJsonParse(body);
+
+          if (!data) {
+            console.log(`[DeepImg] 解析失败 | HTTP ${status} | ${body.substring(0, 200)}`);
+            $notify("DeepImg 签到", "响应解析失败", `HTTP ${status}`);
+            return $done();
+          }
+
+          const code = data.code;
+          const message = data.message || "";
+          const d = data.data || {};
+
+          if (status === 200 && code === 0) {
+            const credits = d.single_checkin_credits || 0;
+            const day = d.current_day || 0;
+            console.log(`[DeepImg] 签到成功 | +${credits}积分 | 连续${day}天 | 总计${total}`);
+            $notify("DeepImg 签到 ✓", `签到成功，获得 ${credits} 积分`, `连续签到 ${day} 天\n总积分: ${total}`);
+            return $done();
+          }
+
+          if (status === 200 && (message.includes("already") || message.includes("已签到") || message.includes("今日已签到"))) {
+            console.log(`[DeepImg] 今日已签到 | 总计${total}`);
+            $notify("DeepImg 签到", "今日已签到", `今天已经签到过了\n总积分: ${total}`);
+            return $done();
+          }
+
+          if (status === 401 || status === 403 || code === 20001) {
+            console.log(`[DeepImg] 登录失效 | HTTP ${status} | code=${code}`);
+            $notify("DeepImg 签到", "登录失效", "Token 已过期，请重新登录 deepimg.io");
+            const s = getStore();
+            delete s.token;
+            saveStore(s);
+            return $done();
+          }
+
+          console.log(`[DeepImg] 签到失败 | HTTP ${status} | code=${code} | ${message}`);
+          $notify("DeepImg 签到", "签到失败", message || `HTTP ${status}`);
+          return $done();
+        },
+        (reason) => {
+          const err = reason?.error ? String(reason.error) : String(reason || "");
+          console.log(`[DeepImg] 网络错误 | ${err}`);
+          $notify("DeepImg 签到", "网络错误", err);
           return $done();
         }
-
-        const code = data.code;
-        const message = data.message || "";
-        const d = data.data || {};
-
-        // 成功
-        if (status === 200 && code === 0) {
-          const credits = d.single_checkin_credits || 0;
-          const day = d.current_day || 0;
-          const total = store.lastTotal || 0;
-
-          console.log(`[DeepImg] 签到成功 | +${credits}积分 | 连续${day}天 | 总计${total}`);
-          $notify("DeepImg 签到 ✓", `签到成功，获得 ${credits} 积分`, `连续签到 ${day} 天\n总积分: ${total}`);
-
-          // 异步更新积分缓存
-          $task.fetch({
-            url: `${API_BASE}/api/user/credits/stats`,
-            method: "GET",
-            headers: { "Authorization": `Bearer ${store.token}` },
-          }).then((resp) => {
-            const data = safeJsonParse(resp.body);
-            const newTotal = parseInt(data?.data?.total?.total_credits) || 0;
-            const cache = getStore();
-            cache.lastTotal = newTotal;
-            cache.lastCredits = credits;
-            cache.lastDay = day;
-            saveStore(cache);
-          }).catch(() => {});
-
-          return $done();
-        }
-
-        // 已签到
-        if (status === 200 && (message.includes("already") || message.includes("已签到") || message.includes("今日已签到"))) {
-          const total = store.lastTotal || 0;
-          console.log(`[DeepImg] 今日已签到 | 总计${total}`);
-          $notify("DeepImg 签到", "今日已签到", message || "今天已经签到过了");
-          return $done();
-        }
-
-        // 登录失效
-        if (status === 401 || status === 403 || code === 20001) {
-          console.log(`[DeepImg] 登录失效 | HTTP ${status} | code=${code}`);
-          $notify("DeepImg 签到", "登录失效", "Token 已过期，请重新登录 deepimg.io");
-          const s = getStore();
-          delete s.token;
-          saveStore(s);
-          return $done();
-        }
-
-        // 其他错误
-        console.log(`[DeepImg] 签到失败 | HTTP ${status} | code=${code} | ${message}`);
-        $notify("DeepImg 签到", "签到失败", message || `HTTP ${status}`);
-        return $done();
-      },
-      (reason) => {
-        const err = reason?.error ? String(reason.error) : String(reason || "");
-        console.log(`[DeepImg] 网络错误 | ${err}`);
-        $notify("DeepImg 签到", "网络错误", err);
-        return $done();
-      }
-    );
+      );
+    }).catch(() => {
+      $notify("DeepImg 签到", "网络错误", "无法获取积分统计");
+      return $done();
+    });
   };
 
   doCheckin();
