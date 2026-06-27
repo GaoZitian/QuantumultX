@@ -83,8 +83,11 @@ function fetchTotalCredits(token, callback) {
     },
   }).then((resp) => {
     const data = safeJsonParse(resp.body);
+    // 调试：把完整响应显示在通知里
+    $notify("DeepImg 调试", "stats 响应", JSON.stringify(data));
     callback(data?.data?.total_credits || 0);
-  }).catch(() => {
+  }).catch((e) => {
+    $notify("DeepImg 调试", "stats 失败", String(e));
     const store = getStore();
     callback(store.lastTotal || 0);
   });
