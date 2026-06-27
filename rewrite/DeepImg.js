@@ -73,6 +73,23 @@ function formatDate(ts) {
   } catch (_) { return "未知"; }
 }
 
+function fetchTotalCredits(token, callback) {
+  $task.fetch({
+    url: `${API_BASE}/api/user/credits/stats`,
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Accept": "application/json",
+    },
+  }).then((resp) => {
+    const data = safeJsonParse(resp.body);
+    callback(data?.data?.total_credits || 0);
+  }).catch(() => {
+    const store = getStore();
+    callback(store.lastTotal || 0);
+  });
+}
+
 // ============ 抓取 Token（rewrite 脚本触发） ============
 const isGetHeader = typeof $request !== "undefined" && $request.headers;
 
@@ -120,10 +137,8 @@ if (isGetHeader) {
 
   // 执行签到
   const doCheckin = () => {
-    const url = `${API_BASE}/api/checkin`;
-
-    const myRequest = {
-      url: url,
+    $task.fetch({
+      url: `${API_BASE}/api/checkin`,
       method: "POST",
       headers: {
         "Authorization": `Bearer ${store.token}`,
@@ -134,9 +149,7 @@ if (isGetHeader) {
         "Referer": "https://deepimg.io/",
       },
       body: "",
-    };
-
-    $task.fetch(myRequest).then(
+    }).then(
       (resp) => {
         const status = resp.statusCode;
         const body = resp.body || "";
@@ -155,36 +168,37 @@ if (isGetHeader) {
         // 成功
         if (status === 200 && code === 0) {
           const credits = d.single_checkin_credits || 0;
-          const total = d.total_credits || 0;
           const day = d.current_day || 0;
 
-          const logMsg = `[DeepImg] 签到成功 | +${credits}积分 | 连续${day}天 | 总计${total}`;
-          console.log(logMsg);
-          $notify("DeepImg 签到 ✓", `签到成功，获得 ${credits} 积分`, `连续签到 ${day} 天\n总积分: ${total}`);
+          fetchTotalCredits(store.token, (total) => {
+            console.log(`[DeepImg] 签到成功 | +${credits}积分 | 连续${day}天 | 总计${total}`);
+            $notify("DeepImg 签到 ✓", `签到成功，获得 ${credits} 积分`, `连续签到 ${day} 天\n总积分: ${total}`);
 
-          // 缓存积分数据
-          const cache = getStore();
-          cache.lastCredits = credits;
-          cache.lastTotal = total;
-          cache.lastDay = day;
-          saveStore(cache);
+            const cache = getStore();
+            cache.lastCredits = credits;
+            cache.lastTotal = total;
+            cache.lastDay = day;
+            saveStore(cache);
 
-          return $done();
+            return $done();
+          });
+          return;
         }
 
         // 已签到
         if (status === 200 && (message.includes("already") || message.includes("已签到") || message.includes("今日已签到"))) {
-          const total = d.total_credits || store.lastTotal || 0;
-          console.log(`[DeepImg] 今日已签到 | 总计${total}`);
-          $notify("DeepImg 签到", "今日已签到", message || "今天已经签到过了");
-          return $done();
+          fetchTotalCredits(store.token, (total) => {
+            console.log(`[DeepImg] 今日已签到 | 总计${total}`);
+            $notify("DeepImg 签到", "今日已签到", message || "今天已经签到过了");
+            return $done();
+          });
+          return;
         }
 
         // 登录失效
         if (status === 401 || status === 403 || code === 20001) {
           console.log(`[DeepImg] 登录失效 | HTTP ${status} | code=${code}`);
           $notify("DeepImg 签到", "登录失效", "Token 已过期，请重新登录 deepimg.io");
-          // 清除过期 Token
           const s = getStore();
           delete s.token;
           saveStore(s);
@@ -192,8 +206,7 @@ if (isGetHeader) {
         }
 
         // 其他错误
-        const logMsg = `[DeepImg] 签到失败 | HTTP ${status} | code=${code} | ${message}`;
-        console.log(logMsg);
+        console.log(`[DeepImg] 签到失败 | HTTP ${status} | code=${code} | ${message}`);
         $notify("DeepImg 签到", "签到失败", message || `HTTP ${status}`);
         return $done();
       },
