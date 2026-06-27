@@ -189,6 +189,7 @@ if (isGetHeader) {
         // 已签到
         if (status === 200 && (message.includes("already") || message.includes("已签到") || message.includes("今日已签到"))) {
           fetchTotalCredits(store.token, (total) => {
+            console.log(`[DeepImg] 今日已签到 | 总计${total}`);
             $notify("DeepImg 签到", "今日已签到", message || "今天已经签到过了");
             return $done();
           });
