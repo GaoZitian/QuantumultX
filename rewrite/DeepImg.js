@@ -1,7 +1,7 @@
 /******************************
 
 脚本功能：DeepImg 每日签到领积分
-更新时间：2026-06-12
+更新时间：2026-06-29
 使用说明：
   1. 打开 Quantumult X，配置好 [MITM] 后访问 deepimg.io 并登录
   2. 登录后脚本自动抓取 Token 并保存
@@ -117,13 +117,44 @@ if (isGetHeader) {
     return $done();
   }
 
+  // 自动刷新 Token
+  const refreshToken = (currentToken) => {
+    return new Promise((resolve) => {
+      $task.fetch({
+        url: `${API_BASE}/api/refresh`,
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${currentToken}`,
+          "Accept": "application/json",
+        },
+      }).then((resp) => {
+        const data = safeJsonParse(resp.body);
+        const newToken = data?.data?.access_token;
+        if (newToken) {
+          const s = getStore();
+          s.token = newToken;
+          s.updatedAt = Date.now();
+          saveStore(s);
+          console.log("[DeepImg] Token 已自动刷新");
+          resolve(newToken);
+        } else {
+          console.log("[DeepImg] 刷新 Token 失败，使用原 Token");
+          resolve(currentToken);
+        }
+      }).catch(() => {
+        console.log("[DeepImg] 刷新 Token 网络错误，使用原 Token");
+        resolve(currentToken);
+      });
+    });
+  };
+
   // 执行签到
-  const doCheckin = () => {
+  const doCheckin = (token) => {
     $task.fetch({
       url: `${API_BASE}/api/user/credits/stats`,
       method: "GET",
       headers: {
-        "Authorization": `Bearer ${store.token}`,
+        "Authorization": `Bearer ${token}`,
         "Accept": "application/json",
       },
     }).then((statsResp) => {
@@ -134,7 +165,7 @@ if (isGetHeader) {
         url: `${API_BASE}/api/checkin`,
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${store.token}`,
+          "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
           "Accept": "application/json, text/plain, */*",
           "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
@@ -159,8 +190,9 @@ if (isGetHeader) {
           const d = data.data || {};
 
           if (status === 200 && code === 0) {
-            const credits = d.single_checkin_credits || 0;
-            const day = d.current_day || 0;
+            console.log(`[DeepImg] 签到响应: ${body.substring(0, 500)}`);
+            const credits = d.single_checkin_credits || d.credits || d.reward_credits || d.checkin_credits || d.points || 0;
+            const day = d.current_day || d.day || d.consecutive_days || d.streak || 0;
             console.log(`[DeepImg] 签到成功 | +${credits}积分 | 连续${day}天 | 总计${total}`);
             $notify("DeepImg 签到 ✓", `签到成功，获得 ${credits} 积分`, `连续签到 ${day} 天\n总积分: ${total}`);
             return $done();
@@ -198,5 +230,8 @@ if (isGetHeader) {
     });
   };
 
-  doCheckin();
+  // 先刷新 Token，再执行签到
+  refreshToken(store.token).then((newToken) => {
+    doCheckin(newToken);
+  });
 }
