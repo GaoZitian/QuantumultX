@@ -190,11 +190,10 @@ if (isGetHeader) {
           const d = data.data || {};
 
           if (status === 200 && code === 0) {
-            console.log(`[DeepImg] 签到响应: ${body.substring(0, 500)}`);
-            const credits = d.single_checkin_credits || d.credits || d.reward_credits || d.checkin_credits || d.points || 0;
-            const day = d.current_day || d.day || d.consecutive_days || d.streak || 0;
-            console.log(`[DeepImg] 签到成功 | +${credits}积分 | 连续${day}天 | 总计${total}`);
-            $notify("DeepImg 签到 ✓", `签到成功，获得 ${credits} 积分`, `连续签到 ${day} 天\n总积分: ${total}`);
+            const credits = parseInt(d.credits) || 0;
+            const day = parseInt(d.current_day) || 0;
+            console.log(`[DeepImg] 签到成功 | +${credits}积分 | 连续${day}天 | 总计${total + credits}`);
+            $notify("DeepImg 签到 ✓", `签到成功，获得 ${credits} 积分`, `连续签到 ${day} 天\n总积分: ${total + credits}`);
             return $done();
           }
 
