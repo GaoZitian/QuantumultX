@@ -1,10 +1,10 @@
 {
   "name": "taylor图标订阅",
-  "description": "自己脚本用到的图标",
+  "description": "测试",
   "icons": [
     {
-      "name": "sgcc.png",
-      "url": "https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/icons/SGCC.png"
+      "name": "test.png",
+      "url": "https://raw.githubusercontent.com/Sliverkiss/QuantumultX/main/icon/ppmt.png"
     }
   ]
 }
