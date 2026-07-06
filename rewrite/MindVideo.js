@@ -8,7 +8,7 @@
   3. 添加定时任务，每天 00:04 自动签到
 
 [rewrite_local]
-^https:\/\/.*mindvideo\.ai url script-request-header https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/MindVideo.js
+^https?:\/\/.*mindvideo.* url script-request-header https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/MindVideo.js
 
 [task_local]
 4 0 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/MindVideo.js, tag=MindVideo签到, img-url=https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/icons/MindVideo.png, enabled=true
@@ -85,12 +85,20 @@ if (isGetHeader) {
   console.log(`[MindVideo] Cookie: ${cookie ? cookie.substring(0, 50) + "..." : "无"}`);
   console.log(`[MindVideo] Auth: ${token ? token.substring(0, 20) + "..." : "无"}`);
 
+  // 首次触发提示（无论有无 auth），确认 rewrite 规则已生效
+  const store = getStore();
+  const isFirstTrigger = !store._firstTriggered;
+  if (isFirstTrigger) {
+    $notify("MindVideo 签到", "脚本已激活", `Rewrite 规则已生效\n首次访问: ${url.substring(0, 40)}...`);
+    store._firstTriggered = true;
+    saveStore(store);
+  }
+
   if (!cookie && !token) {
-    console.log("[MindVideo] 无认证信息，跳过 (这不是错误，登录前的请求本来就没有)");
+    console.log("[MindVideo] 无认证信息，跳过 (登录前的请求/SPA 渲染请求本就没有)");
     return $done({});
   }
 
-  const store = getStore();
   if (cookie) store.cookie = cookie;
   if (token) store.token = token;
   store.updatedAt = Date.now();
