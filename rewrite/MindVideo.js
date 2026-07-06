@@ -8,7 +8,7 @@
   3. 添加定时任务，每天 00:04 自动签到
 
 [rewrite_local]
-^https:\/\/api-app\.mindvideo\.ai\/api\/credits url script-request-header https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/MindVideo.js
+^https:\/\/api-app\.mindvideo\.ai url script-request-header https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/MindVideo.js
 
 [task_local]
 4 0 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/MindVideo.js, tag=MindVideo签到, img-url=https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/icons/MindVideo.png, enabled=true
