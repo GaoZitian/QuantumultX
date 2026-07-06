@@ -14,7 +14,7 @@
 4 0 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/MindVideo.js, tag=MindVideo签到, img-url=https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/icons/MindVideo.png, enabled=true
 
 [MITM]
-hostname = %APPEND% *.mindvideo.ai
+hostname = %APPEND% mindvideo.ai, *.mindvideo.ai, *api-app.mindvideo.ai
 
 ******************************/
 
@@ -80,12 +80,13 @@ if (isGetHeader) {
   const auth = headers["Authorization"] || headers["authorization"] || "";
   const token = auth.replace(/^Bearer\s+/i, "").trim();
 
-  console.log(`[MindVideo] 抓到请求: ${url}`);
+  console.log(`[MindVideo] === Rewrite 脚本被触发 ===`);
+  console.log(`[MindVideo] 请求URL: ${url}`);
   console.log(`[MindVideo] Cookie: ${cookie ? cookie.substring(0, 50) + "..." : "无"}`);
   console.log(`[MindVideo] Auth: ${token ? token.substring(0, 20) + "..." : "无"}`);
 
   if (!cookie && !token) {
-    console.log("[MindVideo] 无认证信息，跳过");
+    console.log("[MindVideo] 无认证信息，跳过 (这不是错误，登录前的请求本来就没有)");
     return $done({});
   }
 
@@ -96,7 +97,7 @@ if (isGetHeader) {
   saveStore(store);
 
   console.log("[MindVideo] 认证信息已保存");
-  $notify("MindVideo 签到", "认证信息获取成功", "已保存登录凭证，定时任务将自动签到");
+  $notify("MindVideo 签到", "认证信息获取成功", `已保存登录凭证\n来源: ${url.substring(0, 50)}...`);
   $done({});
 } else {
   // ============ 定时签到 / 查看账号 ============
