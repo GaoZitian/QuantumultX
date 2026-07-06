@@ -8,14 +8,13 @@
   3. 添加定时任务，每天 00:04 自动签到
 
 [rewrite_local]
-^https:\/\/api-app\.mindvideo\.ai url script-request-header https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/MindVideo.js
+^https:\/\/(www|api-app)\.mindvideo\.ai url script-request-header https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/MindVideo.js
 
 [task_local]
 4 0 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/MindVideo.js, tag=MindVideo签到, img-url=https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/icons/MindVideo.png, enabled=true
 
-
 [MITM]
-hostname = %APPEND% api-app.mindvideo.ai
+hostname = %APPEND% api-app.mindvideo.ai, www.mindvideo.ai
 
 ******************************/
 
@@ -76,11 +75,17 @@ const isGetHeader = typeof $request !== "undefined" && $request.headers;
 
 if (isGetHeader) {
   const headers = $request.headers;
+  const url = $request.url || "";
   const cookie = headers["Cookie"] || headers["cookie"] || "";
   const auth = headers["Authorization"] || headers["authorization"] || "";
   const token = auth.replace(/^Bearer\s+/i, "").trim();
 
+  console.log(`[MindVideo] 抓到请求: ${url}`);
+  console.log(`[MindVideo] Cookie: ${cookie ? cookie.substring(0, 50) + "..." : "无"}`);
+  console.log(`[MindVideo] Auth: ${token ? token.substring(0, 20) + "..." : "无"}`);
+
   if (!cookie && !token) {
+    console.log("[MindVideo] 无认证信息，跳过");
     return $done({});
   }
 
