@@ -14,9 +14,11 @@
 4 0 * * * https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/rewrite/MindVideo.js, tag=MindVideo签到, img-url=https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/icons/MindVideo.png, enabled=true
 
 [MITM]
-hostname = %APPEND% mindvideo.ai, *.mindvideo.ai, *api-app.mindvideo.ai
+hostname = %APPEND% mindvideo.ai, *.mindvideo.ai
 
 ******************************/
+
+try {
 
 const STORE_KEY = "MindVideo_Checkin_Store";
 const API_BASE = "https://api-app.mindvideo.ai";
@@ -238,4 +240,12 @@ if (isGetHeader) {
   };
 
   doCheckin();
+}
+
+} catch (e) {
+  console.log(`[MindVideo] 脚本执行错误: ${e.message}`);
+  if (typeof $notify !== "undefined") {
+    $notify("MindVideo 签到", "脚本执行错误", String(e.message));
+  }
+  if (typeof $done === "function") $done({});
 }
