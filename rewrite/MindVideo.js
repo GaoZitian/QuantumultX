@@ -80,16 +80,18 @@ if (isGetHeader) {
   const auth = headers["Authorization"] || headers["authorization"] || "";
   const token = auth.replace(/^Bearer\s+/i, "").trim();
 
+  // 每次请求都弹窗——诊断 rewrite 是否触发
   console.log(`[MindVideo] === Rewrite 脚本被触发 ===`);
   console.log(`[MindVideo] 请求URL: ${url}`);
   console.log(`[MindVideo] Cookie: ${cookie ? cookie.substring(0, 50) + "..." : "无"}`);
   console.log(`[MindVideo] Auth: ${token ? token.substring(0, 20) + "..." : "无"}`);
 
-  // 首次触发提示（无论有无 auth），确认 rewrite 规则已生效
+  // 无条件弹窗确认 rewrite 已生效（每个匹配请求都弹一次）
+  $notify("MindVideo 签到", "脚本被触发", `URL: ${url.substring(0, 40)}...`);
+
+  // 首次触发时记录（用于后续逻辑），但弹窗已经在上面发了
   const store = getStore();
-  const isFirstTrigger = !store._firstTriggered;
-  if (isFirstTrigger) {
-    $notify("MindVideo 签到", "脚本已激活", `Rewrite 规则已生效\n首次访问: ${url.substring(0, 40)}...`);
+  if (!store._firstTriggered) {
     store._firstTriggered = true;
     saveStore(store);
   }
