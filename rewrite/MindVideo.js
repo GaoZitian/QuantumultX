@@ -18,7 +18,10 @@ hostname = %APPEND% mindvideo.ai, *.mindvideo.ai
 
 ******************************/
 
-try {
+// === 顶层调试：脚本只要被加载就弹窗 ===
+$notify("MindVideo 测试", "脚本被加载", "URL: " + (typeof $request !== "undefined" ? $request.url || "定时任务" : "N/A"));
+$notify("MindVideo 测试", "isGetHeader=" + (typeof $request !== "undefined" && $request.headers ? "true" : "false"), "store=" + (typeof $prefs !== "undefined" ? "true" : "false"));
+// === 顶层调试结束 ===
 
 const STORE_KEY = "MindVideo_Checkin_Store";
 const API_BASE = "https://api-app.mindvideo.ai";
@@ -240,12 +243,4 @@ if (isGetHeader) {
   };
 
   doCheckin();
-}
-
-} catch (e) {
-  console.log(`[MindVideo] 脚本执行错误: ${e.message}`);
-  if (typeof $notify !== "undefined") {
-    $notify("MindVideo 签到", "脚本执行错误", String(e.message));
-  }
-  if (typeof $done === "function") $done({});
 }
