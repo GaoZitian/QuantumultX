@@ -3,13 +3,12 @@
   "description": "自己脚本用到的图标",
   "icons": [
     {
-      "name": "SGCC",
+      "name": "SGCC.png",
       "url": "https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/icons/SGCC.png"
     },
     {
-      "name": "MindVideo",
+      "name": "MindVideo.png",
       "url": "https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/icons/MindVideo.png"
     }
-
   ]
 }
