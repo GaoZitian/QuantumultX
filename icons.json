@@ -4,15 +4,23 @@
   "icons": [
     {
       "name": "SGCC.png",
-      "url": "https://cdn.jsdelivr.net/gh/GaoZitian/QuantumultX@main/icons/SGCC.png"
+      "url": "https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/icons/SGCC.png"
     },
     {
       "name": "MindVideo.png",
       "url": "https://raw.githubusercontent.com/GaoZitian/QuantumultX/main/icons/MindVideo.png"
     },
     {
-      "name": "wyyyy.png",
+      "name": "WYYYY.png",
       "url": "https://raw.githubusercontent.com/Sliverkiss/QuantumultX/main/icon/wyyyy.png"
+    },
+    {
+      "name": "LinLi.png",
+      "url": "https://raw.githubusercontent.com/MaYIHEI/pin/main/app/linli.png"
+    },
+    {
+      "name": "MiniSo.png",
+      "url": "https://raw.githubusercontent.com/MaYIHEI/pin/main/app/miniso.png"
     }
   ]
 }
